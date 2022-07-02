@@ -1,0 +1,4 @@
+path: https://192.168.255.123:8043/
+user: admin
+pass: foo
+secure: false
