@@ -1,6 +1,6 @@
 Omada Controller metrics exporter for connected wifi stations
 
-Tested against Omada Controller 4.4.6 with EAP245v3 access points.
+Tested against Omada Controller 5.9 with EAP245v3 access points.
 
 Exporter for Prometheus https://prometheus.io/
 

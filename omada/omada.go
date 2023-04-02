@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -24,13 +25,14 @@ var (
 
 // Client connects to an Omada Controller.
 type Client struct {
-	logger   *zap.Logger
-	http     *http.Client
-	baseURL  string
-	username string
-	password string
-	token    string // protected
-	tokenMu  sync.Mutex
+	logger     *zap.Logger
+	http       *http.Client
+	configPath string
+	username   string
+	password   string
+	baseURL    string // protected
+	token      string // protected
+	mu         sync.Mutex
 }
 
 // NewClient returns a client that talks an Omada Controller.
@@ -52,9 +54,10 @@ func NewClient(logger *zap.Logger, config *Config) (*Client, error) {
 			Jar:       jar,
 			Timeout:   defaultTimeout,
 		},
-		baseURL:  strings.TrimSuffix(config.Path, "/"),
-		username: config.Username,
-		password: config.Password,
+		configPath: config.Path,
+		baseURL:    strings.TrimSuffix(config.Path, "/"),
+		username:   config.Username,
+		password:   config.Password,
 	}
 
 	if err = c.authenticate(); err != nil {
@@ -66,14 +69,37 @@ func NewClient(logger *zap.Logger, config *Config) (*Client, error) {
 
 // Token returns the auth token for the controller.  Some URLs may need it.
 func (c *Client) Token() string {
-	c.tokenMu.Lock()
+	c.mu.Lock()
 	t := c.token
-	c.tokenMu.Unlock()
+	c.mu.Unlock()
 	return t
 }
 
+// BaseURL returns the path to the Omada controller.  When authenticated,
+// this will include the Controller ID as of Omada 5.x
+func (c *Client) BaseURL() string {
+	c.mu.Lock()
+	u := c.baseURL
+	c.mu.Unlock()
+	return u
+}
+
+// SetBaseURL updates the path to the Omada controller.
+func (c *Client) SetBaseURL(path string) error {
+	newPath, err := url.JoinPath(c.configPath, path)
+	if err != nil {
+		return err
+	}
+
+	c.mu.Lock()
+	c.baseURL = strings.TrimSuffix(newPath, "/")
+	c.mu.Unlock()
+
+	return nil
+}
+
 func (c *Client) postJSON(url string, body io.Reader, target interface{}) error {
-	req, err := http.NewRequest("POST", c.baseURL+url, body)
+	req, err := http.NewRequest("POST", c.BaseURL()+url, body)
 	if err != nil {
 		return err
 	}
@@ -81,7 +107,7 @@ func (c *Client) postJSON(url string, body io.Reader, target interface{}) error 
 }
 
 func (c *Client) getJSON(url string, target interface{}) error {
-	req, err := http.NewRequest("GET", c.baseURL+url, nil)
+	req, err := http.NewRequest("GET", c.BaseURL()+url, nil)
 	if err != nil {
 		return err
 	}
@@ -93,6 +119,7 @@ func (c *Client) doJSON(req *http.Request, target interface{}) error {
 	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Csrf-Token", c.Token())
 
 	res, err := c.http.Do(req)
 	if err != nil {
@@ -108,7 +135,7 @@ func (c *Client) doJSON(req *http.Request, target interface{}) error {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("returned %q", res.Status)
+		return fmt.Errorf("%q returned %q", req.URL, res.Status)
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(target); err != nil {
@@ -137,6 +164,37 @@ retry:
 
 // authenticate updates c.token or returns an error.
 func (c *Client) authenticate() error {
+
+	type infoResult struct {
+		ErrorCode int64  `json:"errorCode"`
+		Msg       string `json:"msg"`
+		Result    struct {
+			ControllerID string `json:"omadacId"`
+		} `json:"result"`
+	}
+
+	// Remove any known Controller ID.
+	var err error
+	err = c.SetBaseURL("/")
+	if err != nil {
+		return err
+	}
+
+	var ir infoResult
+	err = c.getJSON("/api/info", &ir)
+	if err != nil {
+		return err
+	}
+
+	if ir.Result.ControllerID == "" {
+		return fmt.Errorf("missing controller ID: %v: %q", ir.ErrorCode, ir.Msg)
+	}
+
+	err = c.SetBaseURL(ir.Result.ControllerID)
+	if err != nil {
+		return err
+	}
+
 	type authResult struct {
 		ErrorCode int64  `json:"errorCode"`
 		Msg       string `json:"msg"`
@@ -166,8 +224,8 @@ func (c *Client) authenticate() error {
 		return fmt.Errorf("auth failed: %v: %q", ar.ErrorCode, ar.Msg)
 	}
 
-	c.tokenMu.Lock()
+	c.mu.Lock()
 	c.token = ar.Result.Token
-	c.tokenMu.Unlock()
+	c.mu.Unlock()
 	return nil
 }
