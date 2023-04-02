@@ -22,10 +22,10 @@ var errMissingConfig = errors.New("ensure OMADA_PATH OMADA_USER OMADA_PASS are c
 // ParseConfig reads a config file, if available, and then
 // uses values from these environment variables:
 //
-//     OMADA_PATH - base URL to Omada controller, like "https://192.168.255.123:8043/"
-//     OMADA_USER - controller admin username
-//     OMADA_PASS - controller admin password
-//     OMADA_SECURE - require verifiable TLS connection to OMADA_PATH when 1 or true
+//	OMADA_PATH - base URL to Omada controller, like "https://192.168.255.123:8043/"
+//	OMADA_USER - controller admin username
+//	OMADA_PASS - controller admin password
+//	OMADA_SECURE - require verifiable TLS connection to OMADA_PATH when 1 or true
 //
 // Note that "secure" is false by default, the default controller does not
 // have a verifiable TLS certificate.
