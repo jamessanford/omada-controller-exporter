@@ -75,6 +75,12 @@ func (c *Client) Token() string {
 	return t
 }
 
+func (c *Client) SetToken(token string) {
+	c.mu.Lock()
+	c.token = token
+	c.mu.Unlock()
+}
+
 // BaseURL returns the path to the Omada controller.  When authenticated,
 // this will include the Controller ID as of Omada 5.x
 func (c *Client) BaseURL() string {
@@ -173,6 +179,9 @@ func (c *Client) authenticate() error {
 		} `json:"result"`
 	}
 
+	// Don't use old tokens during reauthentication.
+	c.SetToken("")
+
 	// Remove any known Controller ID.
 	var err error
 	err = c.SetBaseURL("/")
@@ -224,8 +233,7 @@ func (c *Client) authenticate() error {
 		return fmt.Errorf("auth failed: %v: %q", ar.ErrorCode, ar.Msg)
 	}
 
-	c.mu.Lock()
-	c.token = ar.Result.Token
-	c.mu.Unlock()
+	c.SetToken(ar.Result.Token)
+
 	return nil
 }
