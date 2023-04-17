@@ -3,7 +3,6 @@ package omada
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"go.uber.org/zap"
 )
@@ -68,8 +67,11 @@ func (c *Client) Sites() ([]*Site, error) {
 			if err != nil {
 				return err
 			}
-			if r.ErrorCode != 0 && strings.Contains(r.Msg, "session timed out") {
+			if r.ErrorCode == -1200 {
 				return errTokenExpired
+			}
+			if r.ErrorCode != 0 {
+				return fmt.Errorf("%d: %s", r.ErrorCode, r.Msg)
 			}
 
 			return nil
