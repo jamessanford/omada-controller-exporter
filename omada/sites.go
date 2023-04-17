@@ -71,7 +71,7 @@ func (c *Client) Sites() ([]*Site, error) {
 				return errTokenExpired
 			}
 			if r.ErrorCode != 0 {
-				return fmt.Errorf("%d: %s", r.ErrorCode, r.Msg)
+				return fmt.Errorf("%v: %s", r.ErrorCode, r.Msg)
 			}
 
 			return nil
