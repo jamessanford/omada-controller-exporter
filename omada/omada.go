@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -132,7 +131,7 @@ func (c *Client) doJSON(req *http.Request, target interface{}) error {
 		return err
 	}
 	defer func() {
-		_, _ = ioutil.ReadAll(res.Body)
+		_, _ = io.ReadAll(res.Body)
 		res.Body.Close()
 	}()
 

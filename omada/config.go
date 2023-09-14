@@ -3,7 +3,6 @@ package omada
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -33,7 +32,7 @@ func ParseConfig(configFile string) (*Config, error) {
 	config := &Config{}
 
 	if configFile != "" {
-		data, err := ioutil.ReadFile(configFile)
+		data, err := os.ReadFile(configFile)
 		if err != nil {
 			return nil, fmt.Errorf("config %q: %w", configFile, err)
 		}
