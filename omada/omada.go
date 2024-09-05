@@ -81,7 +81,7 @@ func (c *Client) SetToken(token string) {
 }
 
 // BaseURL returns the path to the Omada controller.  When authenticated,
-// this will include the Controller ID as of Omada 5.x
+// this will include the Controller ID as of Omada 5.x.
 func (c *Client) BaseURL() string {
 	c.mu.Lock()
 	u := c.baseURL
